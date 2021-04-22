@@ -1,0 +1,175 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Web.Http;
+
+namespace UserWebAPI.Controller
+{
+    public class UserController : ApiController
+    {
+        public IHttpActionResult GetAllUsers()
+        {
+            IList<UsersViewModel> Users= null;
+
+            using (var ctx = new UsersDBEntities())
+            {
+                Users = ctx.Users.Select(s => new UsersViewModel()
+                {
+                    Id = s.UserID,
+                    UserName= s.UserName,
+		    FirstName = s.FirstName,
+                    LastName = s.LastName
+                    Email= s.Email,
+		    Alias= s.Alias
+
+                }).ToList<UsersViewModel>();
+            }
+
+            if (Users.Count == 0)
+            {
+                return NotFound();
+            }
+
+            return Ok(Users);
+        }
+
+        public IHttpActionResult AddNewUsers(UsersViewModel User)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest("Not a valid data");
+
+            using (var ctx = new UsersDBEntities())
+            {
+                ctx.Users.Add(new User()
+                {
+                    UserName= s.UserName,
+		    FirstName = s.FirstName,
+                    LastName = s.LastName
+                    Email= s.Email,
+		    Alias= s.Alias
+                });
+
+                ctx.SaveChanges();
+            }
+            return Ok();
+        }
+
+        public IHttpActionResult update(UsersViewModel User)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest("Not a valid data");
+
+            using (var ctx = new UsersDBEntities())
+            {
+                var existingUser = ctx.Users.Where(s => s.UserID == User.Id).FirstOrDefault<User>();
+
+                if (existingUser != null)
+                {
+                    existingUser.FirstName = User.FirstName;
+                    existingUser.LastName = User.LastName;
+
+                    ctx.SaveChanges();
+                }
+                else
+                {
+                    return NotFound();
+                }
+            }
+            return Ok();
+        }
+
+
+        public IHttpActionResult Delete(int id)
+        {
+            if (id <= 0)
+                return BadRequest("Not a valid user id");
+
+            using (var ctx = new UsersDBEntities())
+            {
+                var User = ctx.Users
+                    .Where(s => s.UserID == id)
+                    .FirstOrDefault();
+
+                ctx.Entry(User).State = System.Data.Entity.EntityState.Deleted;
+                ctx.SaveChanges();
+            }
+            return Ok();
+        }
+    }
+}
+
+
+public class User
+{
+    public int userID { get; set; }
+    public string UserName { get; set; }
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
+    public string Email { get; set; }
+    public string Alias { get; set; }
+}
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Net.Http;
+using System.Net.Http.Headers;
+
+namespace HttpClient
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            using (var client = new HttpClient())
+            {
+                client.BaseAddress = new Uri("http://localhost:8080/api/");
+
+                //HTTP GET
+                var responseTask = client.GetAsync("User");
+                responseTask.Wait();
+
+                var result = responseTask.Result;
+                if (result.IsSuccessStatusCode)
+                {
+
+                    var readTask = result.Content.ReadAsAsync<User[]>();
+                    readTask.Wait();
+
+                    var Users = readTask.Result;
+
+                    foreach (var user in Users)
+                    {
+                        Console.WriteLine(user.Name);
+                    }
+                }
+
+            //Http Post 
+            var User= new User() { Name = "karthi" };
+
+            var postTask = client.PostAsJsonAsync<User>("User", User);
+            postTask.Wait();
+
+            var resultadd = postTask.Result;
+            if (resultadd.IsSuccessStatusCode)
+            {
+
+                var readTask = resultadd.Content.ReadAsAsync<User>();
+                readTask.Wait();
+
+                var insertedUser = readTask.Result;
+
+                Console.WriteLine("User {0} inserted with id: {1}", insertedUser.UserName, insertedUser.UserId);
+            }
+
+
+            }
+            Console.ReadLine();
+        }        
+    }
+}
